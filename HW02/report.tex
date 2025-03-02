@@ -1,0 +1,150 @@
+\documentclass[UTF8]{ctexart}
+\usepackage{geometry, CJKutf8}
+\geometry{margin=1.5cm, vmargin={0pt,1cm}}
+\setlength{\topmargin}{-1cm}
+\setlength{\paperheight}{29.7cm}
+\setlength{\textheight}{25.3cm}
+
+% useful packages.
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{enumerate}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage{fancyhdr}
+\usepackage{layout}
+\usepackage{listings}
+\usepackage{float, caption}
+\usepackage{xcolor}
+\lstset{
+  basicstyle=\ttfamily\small,      % 设置字体样式
+  numbers=left,                    % 显示行号
+  numberstyle=\tiny\color{gray},   % 行号样式
+  stepnumber=1,                    % 行号步长
+  numbersep=10pt,                  % 行号与代码之间的间距
+  backgroundcolor=\color{lightgray!20},  % 设置背景颜色
+  frame=single,                    % 添加边框
+  breaklines=true,                 % 自动换行
+  captionpos=b,                    % 标题位置
+}
+
+% some common command
+\newcommand{\dif}{\mathrm{d}}
+\newcommand{\avg}[1]{\left\langle #1 \right\rangle}
+\newcommand{\difFrac}[2]{\frac{\dif #1}{\dif #2}}
+\newcommand{\pdfFrac}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\OFL}{\mathrm{OFL}}
+\newcommand{\UFL}{\mathrm{UFL}}
+\newcommand{\fl}{\mathrm{fl}}
+\newcommand{\op}{\odot}
+\newcommand{\Eabs}{E_{\mathrm{abs}}}
+\newcommand{\Erel}{E_{\mathrm{rel}}}
+
+\begin{document}
+
+\pagestyle{fancy}
+\fancyhead{}
+\lhead{高卓杭, 3230104543}
+\chead{数值代数第二次作业}
+\rhead{Mar.2nd, 2025}
+
+\section{摘要}
+本文针对一个特定的 $84\times 84$ 三对角线性方程组，分别采用 Gauss 消去法（不选主元）及带列主元的 Gauss 消去法（部分主元法）进行数值求解，并基于自定义的 \texttt{Matrix} 类完成矩阵的构造、分解及三角方程的求解。实验结果表明：不选主元时由于数值不稳定，解的后半段开始发生指数级别的偏离；使用列主元能在一定程度上改善此现象，但对于病态或近病态体系，误差仍会被放大。通过对比理论解（全 1 向量），可以清晰地观察到主元选择对数值稳定性的影响。
+
+\section{引言}
+Gauss 消去法被广泛用来求解线性方程组，但在大规模或病态问题上，如果不适当地选取主元，就可能导致小主元除法引发的舍入误差累积。列主元法（部分主元法）是一种常见的改进方案，通过在每列消去时寻找绝对值最大的元素作为主元交换到对角位置，从而减小误差放大的风险。为验证这一现象，本实验选择维度为 $84$ 的三对角矩阵，与相应的右端项向量进行求解，并分析结果偏差及其成因。
+
+\section{问题与理论基础}
+
+\subsection{三对角线性方程组}
+实验方程组的系数矩阵 $A$ 为三对角，规模 $84\times 84$，主对角元为 6，上对角元为 1，下对角元为 8。对于第 $i$ 行（$i$ 从 1 到 84），有
+\[
+\begin{cases}
+a_{i,i} = 6,\\
+a_{i,i+1} = 1 \quad (\text{若 } i \neq 84),\\
+a_{i,i-1} = 8 \quad (\text{若 } i \neq 1).
+\end{cases}
+\]
+右端项向量 $\mathbf{b}$ 的分量大多为 15，但在首尾两端略有改动：$b_1 = 7, \; b_{84} = 14$。设该方程组为
+\[
+A \mathbf{x} = \mathbf{b}.
+\]
+若在理想精度下求解，可以看到解 $\mathbf{x}$ 应为全 1，即 $x_i = 1$。
+
+\subsection{Gauss 消去与列主元法}
+Gauss 消去法的主要目标是对矩阵做一系列初等行变换，从而将其转换为上三角形式，再通过回代（back-substitution）获得解。若不做任何主元选择，则默认直接用对角元进行消去。当对角元过小时，极易放大舍入误差甚至出现除零错误。列主元法在消去前会于当前列选取绝对值最大的元素交换至对角线位置，以避免出现极小的主元值，这通常能显著提高数值稳定性。
+
+\section{Matrix 类的设计与算法流程}
+
+\subsection{Matrix 类设计思路}
+\begin{itemize}
+\item \textbf{存储结构：} 使用一维 \texttt{std::vector<T>} 存放全部元素，通过 \texttt{data[row * mat\_col + col]} 进行索引访问，减少不必要的多级指针操作。
+\item \textbf{访问与构造：} 提供下标运算符 \verb|operator()(i, j)| 读写任意位置，构造函数可指定行列数或使用初始化列表进行小规模矩阵测试。
+\item \textbf{分解接口：} 提供不带主元的 \texttt{LUdecomposition()} 与带列主元的 \texttt{PALUdecomposition()} 两种方法，前者简洁但数值稳定性较差，后者需要额外记录行置换信息以便后续求解。
+\item \textbf{三角方程求解：} 提供 \texttt{SolveLowerTriangular()} 和 \texttt{SolveUpperTriangular()} 方法，实现下三角、上三角系统的顺序求解。
+\item \textbf{辅助函数：} 如 \texttt{MulWithVector()} 用于验证结果或与置换矩阵相乘；也可添加矩阵加减、转置等函数方便测试与扩展。
+\end{itemize}
+
+\subsection{方程求解的主要步骤}
+\begin{enumerate}
+\item \textbf{构造三对角矩阵与向量：} 根据前述规则填充 $A$ 和 $\mathbf{b}$，完成初始化。
+\item \textbf{不选主元 Gauss 消去：} 
+  \begin{itemize}
+    \item 调用 \texttt{LUdecomposition()} 得到合并在同一矩阵中的 $L$、$U$ 信息；
+    \item 从该矩阵中分离或重置对角下、对角上部分，生成显式的 $L$、$U$；
+    \item 用 $L$ 解 $L\mathbf{y} = \mathbf{b}$（前替换），再用 $U$ 解 $U\mathbf{x} = \mathbf{y}$（后替换），得到 $\mathbf{x}$。
+  \end{itemize}
+\item \textbf{列主元 Gauss 消去：}
+  \begin{itemize}
+    \item 调用 \texttt{PALUdecomposition()} 获得部分主元法下的 $LU$ 矩阵与行置换向量 \texttt{p}；
+    \item 分离出 $L$ 与 $U$；根据 \texttt{p} 构造置换矩阵 $P$ 或者直接对 $\mathbf{b}$ 的行序进行同样的交换，得到 $\mathbf{b}'$；
+    \item 解 $L\mathbf{y} = \mathbf{b}'$ 与 $U\mathbf{x} = \mathbf{y}$。
+  \end{itemize}
+\item \textbf{输出并比较结果：} 将数值解与理论解（全 1）进行对照，观察误差分布及偏离情况。
+\end{enumerate}
+
+\section{实验结果与讨论}
+
+\subsection{数值结果展示}
+表 \ref{table:comp} 选取了不选主元法与列主元法在部分行的解值进行比较，并与理论解（全 1）对照，可见在前若干行时，两种方法都比较接近 1，但在后期行数上，不选主元的结果出现了指数级的发散或剧烈震荡；列主元相对稳定一些，但同样偏离 1 较明显。这里仅展示若干行的结果，供参考。
+
+\begin{table}[h]
+\centering
+\caption{不同方法得到的局部解值比较（示例摘录）}
+\label{table:comp}
+\begin{tabular}{c|c|c|c}
+\hline
+\textbf{行号} & \textbf{理论解} & \textbf{不选主元法} & \textbf{列主元法} \\
+\hline
+1   & 1.000000 & 1.000000 & 1.000000 \\
+2   & 1.000000 & 1.000000 & 1.000000 \\
+\vdots & \vdots & \vdots & \vdots \\
+30  & 1.000000 & 1.000000 & 1.000000 \\
+48 &  1.000000 & 1.015624 & 1.031250 \\
+60  & 1.000000 & 64.996092 & 128.999996 \\
+70  & 1.000000 & 65531.000122 & 131068.999878 \\
+80  & 1.000000 & 65007745.000000 & 130023424.878906 \\
+84  & 1.000000 & 536838144.999998 & 1073741824.000000 \\
+\hline
+\end{tabular}
+\end{table}
+
+可以观察到，在不选主元法中，从大约 60 行之后，解开始产生明显偏离，并快速正负交替跃升；列主元法虽然理论上延缓了发散，但在行数越靠后时，解依旧出现大数量级偏离，且由于列主元法需要更多次计算，在这个问题中，当主元不是最主要的影响因素时，在更早的位置产生了发散。
+
+\subsection{误差放大原因}
+\begin{enumerate}
+\item \textbf{主元过小：} 不选主元时，某些对角元极可能非常接近 0，直接导致除法过程放大误差；列主元在一定程度上避免了小主元，但并非总能彻底消除病态。
+\item \textbf{三对角矩阵病态：} 本实验中，虽然三对角结构较为简单，但当维度增大到 84 时，其条件数可能明显变大，对于浮点精度要求更高。
+\item \textbf{有限精度与舍入：} 采用 \texttt{long double} 也无法完全避免累积舍入，连续消去与回代都可能进一步放大局部误差。
+\end{enumerate}
+
+\subsection{改进建议}
+\begin{itemize}
+\item 使用\textbf{完全主元法}甚至更高级别的数值稳定算法。
+\item 对矩阵进行\textbf{正交预处理}、缩放等，以降低条件数。
+\item 更换为\textbf{更高精度}（如多重精度库）或\textbf{迭代算法}（如共轭梯度、GMRES 等）进行求解。
+\end{itemize}
+
+\end{document}
