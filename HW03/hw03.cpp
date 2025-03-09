@@ -23,7 +23,7 @@ std::pair<Matrix<T>, std::vector<T>> SetHilbVal(size_t N) {
     std::vector<T> b(N);
     for (size_t i = 0; i < N; ++i)
         for (size_t j = 0; j < N; ++j)
-            b[i] += 1.0L / ((T)(i + 1) + (T)(j + 1) - 1.0L);
+            b[i] += 1.0L / (i + j + 1.0L);
     return std::make_pair(m, b);
 }
 
@@ -106,7 +106,7 @@ void PALUsolveTri() {
     std::vector<long double> b = mb.second;
 
     std::vector<int> p;
-    Matrix<long double> LU = m.PALUdecomposition(p);
+    Matrix<long double> LU = m.PALUdecomposition(b).first;
     Matrix<long double> L(LU), U(LU);
     for (size_t i = 0; i < N; ++i) {
         for (size_t j = 0; j < N; ++j) {
@@ -117,10 +117,7 @@ void PALUsolveTri() {
         }
         L(i, i) = 1;
     }
-    std::vector<long double> bp(N);
-    for (size_t i = 0; i < N; ++i)
-        bp[i] = b[p[i]];
-    std::vector<long double> y = L.SolveLowerTriangular(bp);
+    std::vector<long double> y = L.SolveLowerTriangular(b);
     std::vector<long double> x = U.SolveUpperTriangular(y);
 
     std::cout << "Solution by PA=LU on Tridiagonal Matrix:" << std::endl;
@@ -208,7 +205,7 @@ void PALUsolveHilb() {
     std::vector<long double> b = mb.second;
 
     std::vector<int> p;
-    Matrix<long double> LU = m.PALUdecomposition(p);
+    Matrix<long double> LU = m.PALUdecomposition(b).first;
     Matrix<long double> L(LU), U(LU);
     for (size_t i = 0; i < N; ++i) {
         for (size_t j = 0; j < N; ++j) {
@@ -219,10 +216,7 @@ void PALUsolveHilb() {
         }
         L(i, i) = 1;
     }
-    std::vector<long double> bp(N);
-    for (size_t i = 0; i < N; ++i)
-        bp[i] = b[p[i]];
-    std::vector<long double> y = L.SolveLowerTriangular(bp);
+    std::vector<long double> y = L.SolveLowerTriangular(b);
     std::vector<long double> x = U.SolveUpperTriangular(y);
 
     std::cout << "Solution by PA=LU on Hilbert Matrix:" << std::endl;
@@ -232,13 +226,13 @@ void PALUsolveHilb() {
 }
 
 int main() {
-    std::cout << std::fixed << std::setprecision(6);
+    std::cout << std::fixed << std::setprecision(8);
     // LLTsolveTri();
     // LDLTsolveTri();
     // LUsolveTri();
     // PALUsolveTri();
     LLTsolveHilb();
-    LDLTsolveHilb();
+    // LDLTsolveHilb();
     // LUsolveHilb();
     // PALUsolveHilb();
     return 0;
