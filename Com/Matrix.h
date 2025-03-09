@@ -174,7 +174,7 @@ public:
         Matrix<T> L(n, n);
         for (size_t i = 0; i < n; ++i) {
             for (size_t j = 0; j <= i; ++j) {
-                T sum = T(0);
+                T sum = 0.0;
                 for (size_t k = 0; k < j; ++k) {
                     sum += L(i, k) * L(j, k);
                 }
@@ -183,7 +183,7 @@ public:
                     if (diag < 1e-15) {
                         throw std::runtime_error("Matrix is not positive definite.");
                     }
-                    L(i, j) = std::sqrt(diag);
+                    L(i, j) = std::sqrt(std::fabs(diag));
                 } else {
                     L(i, j) = (((*this)(i, j) - sum) / L(j, j));
                 }
@@ -196,9 +196,9 @@ public:
             throw std::runtime_error("LDLᵀ decomposition requires a square matrix.");
         size_t n = mat_row;
         Matrix<T> L(n, n);
-        std::vector<T> D(n, T(0));
+        std::vector<T> D(n, 0.0);
         for (size_t i = 0; i < n; ++i) {
-            L(i, i) = T(1);
+            L(i, i) = 1.0;
         }
         for (size_t j = 0; j < n; ++j) {
             T sum = T(0);
@@ -209,7 +209,7 @@ public:
             if (std::fabs(D[j]) < 1e-15)
                 throw std::runtime_error("Matrix is not positive definite (zero pivot encountered in D).");
             for (size_t i = j + 1; i < n; ++i) {
-                T sum2 = T(0);
+                T sum2 = 0.0;
                 for (size_t k = 0; k < j; ++k) {
                     sum2 += L(i, k) * L(j, k) * D[k];
                 }

@@ -3,17 +3,17 @@
 
 template <typename T = long double>
 std::pair<Matrix<T>, std::vector<T>> SetTriVal(size_t N) {
-    Matrix<T> m = Matrix<long double>::TridiagonalMatrix(N, 1, 10, 1);
+    Matrix<T> m = Matrix<T>::TridiagonalMatrix(N, 1.0, 10.0, 1.0);
     std::vector<T> b(N);
     std::random_device rd;
     std::mt19937_64 gen(rd());
     std::uniform_real_distribution<T> dist(1.0L, 150.0L);
-    for (size_t i = 1; i < N - 1; ++i)
-        b[i] = 12;
-    b[0] = 11;
-    b[N - 1] = 11;
-    // for (size_t i = 0; i < N; ++i)
-    // b[i] = dist(gen);
+    // for (size_t i = 1; i < N - 1; ++i)
+    //     b[i] = 12.0;
+    // b[0] = 11.0;
+    // b[N - 1] = 11.0;
+    for (size_t i = 0; i < N; ++i)
+        b[i] = dist(gen);
     return std::make_pair(m, b);
 }
 
@@ -25,6 +25,16 @@ std::pair<Matrix<T>, std::vector<T>> SetHilbVal(size_t N) {
         for (size_t j = 0; j < N; ++j)
             b[i] += 1.0L / (i + j + 1.0L);
     return std::make_pair(m, b);
+}
+
+template <typename T = long double>
+void PrintDiff(Matrix<T> &m, std::vector<T> &x, std::vector<T> &b) {
+    std::vector<T> bb = m.MulWithVector(x);
+    size_t n = m.get_col();
+    for (size_t i = 0; i < n; ++i) {
+        std::cout << std::fabs(b[i] - bb[i]) << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 void LLTsolveTri() {
@@ -43,6 +53,7 @@ void LLTsolveTri() {
     for (auto val : x)
         std::cout << val << std::endl;
     std::cout << std::endl;
+    PrintDiff(m, x, b);
 }
 
 void LDLTsolveTri() {
@@ -69,6 +80,7 @@ void LDLTsolveTri() {
     for (auto val : x)
         std::cout << val << std::endl;
     std::cout << std::endl;
+    PrintDiff(m, x, b);
 }
 
 void LUsolveTri() {
@@ -96,6 +108,7 @@ void LUsolveTri() {
     for (auto val : x)
         std::cout << val << std::endl;
     std::cout << std::endl;
+    PrintDiff(m, x, b);
 }
 
 void PALUsolveTri() {
@@ -104,6 +117,7 @@ void PALUsolveTri() {
     auto mb = SetTriVal(N);
     Matrix<long double> m = mb.first;
     std::vector<long double> b = mb.second;
+    std::vector<long double> ob = b;
 
     std::vector<int> p;
     Matrix<long double> LU = m.PALUdecomposition(b).first;
@@ -124,11 +138,12 @@ void PALUsolveTri() {
     for (auto val : x)
         std::cout << val << std::endl;
     std::cout << std::endl;
+    PrintDiff(m, x, ob);
 }
 
 void LLTsolveHilb() {
 
-    size_t N = 40;
+    size_t N = 13;
     auto mb = SetHilbVal(N);
     Matrix<long double> m = mb.first;
     std::vector<long double> b = mb.second;
@@ -146,7 +161,7 @@ void LLTsolveHilb() {
 
 void LDLTsolveHilb() {
 
-    size_t N = 40;
+    size_t N = 13;
     auto mb = SetHilbVal(N);
     Matrix<long double> m = mb.first;
     std::vector<long double> b = mb.second;
@@ -199,7 +214,7 @@ void LUsolveHilb() {
 
 void PALUsolveHilb() {
 
-    size_t N = 40;
+    size_t N = 13;
     auto mb = SetHilbVal(N);
     Matrix<long double> m = mb.first;
     std::vector<long double> b = mb.second;
@@ -227,13 +242,13 @@ void PALUsolveHilb() {
 
 int main() {
     std::cout << std::fixed << std::setprecision(8);
-    // LLTsolveTri();
-    // LDLTsolveTri();
-    // LUsolveTri();
-    // PALUsolveTri();
+    LLTsolveTri();
+    LDLTsolveTri();
+    LUsolveTri();
+    PALUsolveTri();
     LLTsolveHilb();
-    // LDLTsolveHilb();
-    // LUsolveHilb();
-    // PALUsolveHilb();
+    LDLTsolveHilb();
+    LUsolveHilb();
+    PALUsolveHilb();
     return 0;
 }

@@ -1,0 +1,356 @@
+\documentclass[UTF8]{ctexart}
+\usepackage{geometry, CJKutf8}
+\geometry{margin=1.5cm, vmargin={0pt,1cm}}
+\setlength{\topmargin}{-1cm}
+\setlength{\paperheight}{29.7cm}
+\setlength{\textheight}{25.3cm}
+
+% useful packages.
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{enumerate}
+\usepackage{graphicx}
+\usepackage{multicol}
+\usepackage{fancyhdr}
+\usepackage{layout}
+\usepackage{listings}
+\usepackage{float, caption}
+\usepackage{booktabs}  % 提供更好的表格线
+\usepackage{xcolor}
+\lstset{
+  basicstyle=\ttfamily\small,      % 设置字体样式
+  numbers=left,                    % 显示行号
+  numberstyle=\tiny\color{gray},   % 行号样式
+  stepnumber=1,                    % 行号步长
+  numbersep=10pt,                  % 行号与代码之间的间距
+  backgroundcolor=\color{lightgray!20},  % 设置背景颜色
+  frame=single,                    % 添加边框
+  breaklines=true,                 % 自动换行
+  captionpos=b,                    % 标题位置
+}
+
+% some common command
+\newcommand{\dif}{\mathrm{d}}
+\newcommand{\avg}[1]{\left\langle #1 \right\rangle}
+\newcommand{\difFrac}[2]{\frac{\dif #1}{\dif #2}}
+\newcommand{\pdfFrac}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\OFL}{\mathrm{OFL}}
+\newcommand{\UFL}{\mathrm{UFL}}
+\newcommand{\fl}{\mathrm{fl}}
+\newcommand{\op}{\odot}
+\newcommand{\Eabs}{E_{\mathrm{abs}}}
+\newcommand{\Erel}{E_{\mathrm{rel}}}
+
+\begin{document}
+
+\pagestyle{fancy}
+\fancyhead{}
+\lhead{高卓杭, 3230104543}
+\chead{数值代数第三次作业}
+\rhead{Mar.9th, 2025}
+
+\section{程序设计}
+
+本次实验继续在上次的\texttt{Matrix<T>}的类中加入了成员函数
+
+\texttt{std::pair<Matrix<T>, std::vector<T>> LDLTDecomposition() const}
+
+与函数\texttt{Matrix<T> CholeskyDecomposition() const} 分别为改进的平方根分解法和平方根分解法.
+
+第一个函数返回$L$与$D$矩阵，第二个函数直接返回$L$矩阵，在用平方根分解解矩阵的过程中，用到回代法.
+
+\section{测试与实验结果}
+
+对于第一个矩阵，由\texttt{Matrix<T>}类中内置的设置三对角矩阵函数
+
+\texttt{static Matrix<T> TridiagonalMatrix(size\_t n, T subVal, T diagVal, T supVal)}设置
+
+$Hilbert$矩阵由内置的\texttt{static Matrix<T> HilbertMatrix(size\_t n)}设置，
+
+\subsection{三对角矩阵测试与结果}
+
+在三对角矩阵测试中，分别设置了$b$为随机向量以及$b$为使得理论解均为$1$的向量进行测试，测试结果如下：
+
+%-----------------------------------------
+% (1) 三对角(100阶) + 随机 b + LU分解
+\begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，随机 $\mathbf{b}$，LU分解：部分解向量示例}
+  \label{tab:tri100-randb-LU}
+  \begin{tabular}{ccc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$  &  解的绝对误差值 \\
+  \midrule
+  0   &  -0.47789794  & 0.00000000\\
+  1   &  6.42029912  & 0.00000000\\
+  2   &  10.61363734  &0.00000000\\
+  $\vdots$ & $\vdots$ & $\vdots$\\
+  97  &  11.55189785  &0.00000000\\
+  98  &  10.25040401  &0.00000000\\
+  99  &  13.16587475  &0.00000000\\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (2) 三对角(100阶) + 随机 b + 列主元分解
+  \begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，随机 $\mathbf{b}$，列主元分解：部分解向量示例}
+  \label{tab:tri100-randb-partialPivot}
+  \begin{tabular}{ccc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ & 解的绝对误差值 \\
+  \midrule
+  0   &  -0.29071664 & 0.00000000 \\
+  1   &  12.79312675 & 0.00000000 \\
+  2   &  3.75417163 & 0.00000000 \\
+  $\vdots$ & $\vdots$ & $\vdots$\\
+  97  &  -1.19680859 & 0.00000000 \\
+  98  &  8.45954290  & 0.00000000\\
+  99  &  5.63816236  & 0.00000000\\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+%-----------------------------------------
+% (3) 三对角(100阶) + 随机 b + CholeskyDecomposition
+\begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，随机 $\mathbf{b}$，Cholesky 分解：部分解向量示例}
+  \label{tab:tri100-randb-cholesky}
+  \begin{tabular}{ccc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ & 解的绝对误差值\\
+  \midrule
+  0   &  5.23611518 & 0.00000000 \\
+  1   &  2.00788784  & 0.00000000\\
+  2   &  9.69269693  & 0.00000000\\
+  $\vdots$ & $\vdots$  & $\vdots$\\
+  97  &  1.88352355  & 0.00000000\\
+  98  &  10.64939405  & 0.00000000\\
+  99  &  0.58921333 & 0.00000000 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (4) 三对角(100阶) + 随机 b + 改进的平方根分解 (LDLT)
+  \begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，随机 $\mathbf{b}$，LDL$^T$分解：部分解向量示例}
+  \label{tab:tri100-randb-LDLT}
+  \begin{tabular}{ccc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ & 解的绝对误差值\\
+  \midrule
+  0   &  6.24026860  & 0.00000000\\
+  1   &  -0.09503936  & 0.00000000\\
+  2   &  8.05134473  & 0.00000000\\
+  $\vdots$ & $\vdots$ & $\vdots$\\
+  97  &  13.52248286  & 0.00000000\\
+  98  &  2.27357061  & 0.00000000\\
+  99  &  13.88956532  & 0.00000000\\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (5) 三对角(100阶) + b使真解为1 + LU分解
+  \begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，$\mathbf{b}$ 使真解为 1，LU分解：部分解向量示例}
+  \label{tab:tri100-onesolution-LU}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  1.00000000  \\
+  1   &  1.00000000  \\
+  2   &  1.00000000  \\
+  $\vdots$ & $\vdots$ \\
+  97  &  1.00000000 \\
+  98  &  1.00000000  \\
+  99  &  1.00000000  \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (6) 三对角(100阶) + b使真解为1 + 列主元分解
+  \begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，$\mathbf{b}$ 使真解为 1，列主元分解：部分解向量示例}
+  \label{tab:tri100-onesolution-partialPivot}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  1.00000000  \\
+  1   &  1.00000000 \\
+  2   &  1.00000000  \\
+  $\vdots$ & $\vdots$ \\
+  97  &  1.00000000 \\
+  98  &  1.00000000  \\
+  99  &  1.00000000  \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (7) 三对角(100阶) + b使真解为1 + CholeskyDecomposition
+  \begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，$\mathbf{b}$ 使真解为 1，Cholesky 分解：部分解向量示例}
+  \label{tab:tri100-onesolution-cholesky}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  1.00000000  \\
+  1   &  1.00000000  \\
+  2   &  1.00000000 \\
+  $\vdots$ & $\vdots$ \\
+  97  &  1.00000000  \\
+  98  &  1.00000000  \\
+  99  &  1.00000000  \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (8) 三对角(100阶) + b使真解为1 + LDLT
+  \begin{table}[ht]
+  \centering
+  \caption{三对角(100阶)，$\mathbf{b}$ 使真解为 1，LDL$^T$ 分解：部分解向量示例}
+  \label{tab:tri100-onesolution-LDLT}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  1.00000000 \\
+  1   &  1.00000000  \\
+  2   &  1.00000000  \\
+  $\vdots$ & $\vdots$ \\
+  97  &  1.00000000  \\
+  98  &  1.00000000  \\
+  99  &  1.00000000 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+
+可以看到四个算法都得到了非常精确的解，在这个矩阵的求解中，四个算法的精确度被拉平了.
+
+\clearpage
+
+\subsection{Hilbert矩阵测试与结果}
+
+在Hilber矩阵测试中，用平方根分解的过程中，发现待开根号的值非常接近$0$，同时会出现很小的负数的情况，导致完全无法算出结果，故得到了$nan$的结果；同时，在列主元方法和改进的平方根分解中，实际上已经出现了主元小于$tolerance$的情况，列表中是不管主元的大小继续运算得到的结果；四个算法在$Hilber$矩阵的情况下都无法很好地求解，这与$Hilbert$矩阵的条件数过大有关系。下面还给出了用平方根分解求解13阶$Hilbert$矩阵的结果，可以看到在阶数较小的情况下，还是可以一定程度地求解。
+
+%-----------------------------------------
+% (9) Hilbert(40阶) + LU
+\begin{table}[ht]
+  \centering
+  \caption{Hilbert(40阶)，LU分解：部分解向量示例}
+  \label{tab:hilbert40-LU}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  0.99999980  \\
+  1   &  1.00003876  \\
+  2   &  0.99818251  \\
+  $\vdots$ & $\vdots$ \\
+  37  & -26.65544669 \\
+  38  &  34.07261564 \\
+  39  &  -12.43474932 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (10) Hilbert(40阶) + 列主元
+  \begin{table}[ht]
+  \centering
+  \caption{Hilbert(40阶)，列主元分解：部分解向量示例}
+  \label{tab:hilbert40-partialPivot}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  0.99999991  \\
+  1   &  1.00001928  \\
+  2   &  0.99902559  \\
+  $\vdots$ & $\vdots$ \\
+  37  & -6.14223246 \\
+  38  &  -1.65589767 \\
+  39  &  2.81407370 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (11) Hilbert(40阶) + Cholesky
+  \begin{table}[ht]
+  \centering
+  \caption{Hilbert(40阶)，Cholesky 分解：部分解向量示例}
+  \label{tab:hilbert40-cholesky}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  nan \\
+  1   &  nan  \\
+  2   &  nan  \\
+  $\vdots$ & $\vdots$ \\
+  37  & nan \\
+  38  &  nan\\
+  39  &  nan \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+  
+  %-----------------------------------------
+  % (12) Hilbert(40阶) + LDLT
+  \begin{table}[ht]
+  \centering
+  \caption{Hilbert(40阶)，LDL$^T$ 分解：部分解向量示例}
+  \label{tab:hilbert40-LDLT}
+  \begin{tabular}{cc}
+  \toprule
+  \textbf{Index} $i$ & $x[i]$ \\
+  \midrule
+  0   &  1.00000015  \\
+  1   &  0.99997161  \\
+  2   &  1.00130808  \\
+  $\vdots$ & $\vdots$ \\
+  37  & -46.42889503 \\
+  38  &  73.83362397 \\
+  39  &  -22.08116251 \\
+  \bottomrule
+  \end{tabular}
+  \end{table}
+
+
+  \begin{table}[ht]
+    \centering
+    \caption{Hilbert(13阶)，Cholesky 分解：部分解向量示例}
+    \label{tab:hilbert13-cholesky}
+    \begin{tabular}{cc}
+    \toprule
+    \textbf{Index} $i$ & $x[i]$ \\
+    \midrule
+    0   &  1.00000014 \\
+    1   &  0.99997737  \\
+    2   &  1.00087297  \\
+    $\vdots$ & $\vdots$ \\
+    37  & 7.07570132\\
+    38  &  -1.30294173\\
+    39  &  1.38273717\\
+    \bottomrule
+    \end{tabular}
+    \end{table}
+  
+
+\end{document}
