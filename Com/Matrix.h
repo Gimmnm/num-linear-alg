@@ -1,6 +1,54 @@
 #pragma once
 #include "common.h"
 
+template <typename T>
+T VectorL1Norm(const std::vector<T> &vec) {
+    T norm = 0;
+    for (const auto &v : vec)
+        norm += std::fabs(v);
+    return norm;
+}
+
+template <typename T>
+T VectorL2Norm(const std::vector<T> &vec) {
+    T norm = 0;
+    for (const auto &v : vec)
+        norm += v * v;
+    return std::sqrt(norm);
+}
+
+template <typename T>
+T VectorInfinityNorm(const std::vector<T> &vec) {
+    return *std::max_element(vec.begin(), vec.end(), [](T a, T b) { return std::abs(a) < std::abs(b); });
+}
+
+template <typename T>
+void VectorPrint(const std::vector<T> &vec) {
+    size_t n = vec.size();
+    for (size_t i = 0; i < n; ++i) {
+        std::cout << vec[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+template <typename T>
+std::pair<T, size_t> VectorInfinityNormWithIndex(const std::vector<T> &vec) {
+    if (vec.empty()) {
+        throw std::runtime_error("Vector is empty.");
+    }
+
+    size_t max_index = 0;
+    T max_value = std::abs(vec[0]);
+
+    for (size_t i = 1; i < vec.size(); ++i) {
+        if (std::abs(vec[i]) > max_value) {
+            max_value = std::abs(vec[i]);
+            max_index = i;
+        }
+    }
+
+    return {max_value, max_index};
+}
 template <typename T = double>
 class Matrix {
 private:
@@ -77,6 +125,31 @@ public:
         }
         return result;
     }
+
+    T normL1() const {
+        T max_sum = 0;
+        for (size_t j = 0; j < mat_col; ++j) {
+            T col_sum = 0;
+            for (size_t i = 0; i < mat_row; ++i) {
+                col_sum += std::abs((*this)(i, j));
+            }
+            max_sum = std::max(max_sum, col_sum);
+        }
+        return max_sum;
+    }
+
+    T normLInfinity() const {
+        T max_sum = 0;
+        for (size_t i = 0; i < mat_row; ++i) {
+            T row_sum = 0;
+            for (size_t j = 0; j < mat_col; ++j) {
+                row_sum += std::abs((*this)(i, j));
+            }
+            max_sum = std::max(max_sum, row_sum);
+        }
+        return max_sum;
+    }
+
     std::vector<T> SolveLowerTriangular(const std::vector<T> &b) const {
         std::vector<T> x(mat_row, 0.0);
         for (size_t i = 0; i < mat_row; ++i) {
@@ -84,7 +157,7 @@ public:
             for (size_t j = 0; j < i; ++j) {
                 sum -= (*this)(i, j) * x[j];
             }
-            x[i] = sum / (*this)(i, i);
+            x[i] = sum; // L(i, i) = 1
         }
         return x;
     }
@@ -130,8 +203,8 @@ public:
     std::pair<Matrix<T>, Matrix<T>> PALUdecomposition(std::vector<T> &b) const {
         Matrix<T> LU(*this);
         size_t n = mat_row;
-        std::vector<int> p(n); 
-        Matrix<long double> P(n, n);
+        std::vector<int> p(n);
+        Matrix<T> P(n, n);
         std::vector<T> bb = b;
         for (size_t i = 0; i < n; ++i) {
             p[i] = (int)i;
@@ -163,7 +236,7 @@ public:
             }
         }
         for (size_t i = 0; i < n; ++i)
-            P(i, p[i]) = (long double)1, bb[i] = b[p[i]];
+            P(i, p[i]) = 1.0, bb[i] = b[p[i]];
         b = bb;
         return std::make_pair(LU, P);
     }
@@ -219,6 +292,18 @@ public:
         return std::make_pair(L, D);
     }
 
+    std::vector<T> PALUsolve(std::vector<T> b) const {
+        if (mat_row != mat_col) {
+            throw std::runtime_error("Matrix must be square for PALU decomposition.");
+        }
+        std::vector<T> bb = b;
+        auto LU = PALUdecomposition(bb).first;
+        std::vector<T> y = LU.SolveLowerTriangular(bb);
+        std::vector<T> x = LU.SolveUpperTriangular(y);
+
+        return x;
+    }
+
     static Matrix<T> HilbertMatrix(size_t n) {
         Matrix<T> H(n, n);
         for (size_t i = 0; i < n; ++i) {
@@ -239,5 +324,80 @@ public:
                 M(i, i + 1) = supVal;
         }
         return M;
+    }
+
+    static Matrix<T> HwfiveSecondAnMatrix(size_t n) {
+        Matrix<T> M(n, n);
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
+                M(i, j) = 0;
+                if (i == j) M(i, j) = 1;
+                if (j == n - 1) M(i, j) = 1;
+                if (i > j) M(i, j) = -1;
+            }
+        }
+        return M;
+    }
+    T blindHillClimbingInfinityNorm(bool inverse = false) const {
+        size_t n = mat_row;
+        std::vector<T> x(n, 1.0 / (T)n); // 初始向量
+        size_t iter = 1000;
+        if (!inverse) {
+            while (--iter) {
+                std::vector<T> w(n, 0.0);
+                for (size_t i = 0; i < n; ++i) {
+                    for (size_t j = 0; j < mat_col; ++j) {
+                        w[i] += (*this)(i, j) * x[j];
+                    }
+                }
+                std::vector<T> v(n, 0.0);
+                for (size_t i = 0; i < n; ++i) {
+                    v[i] = (w[i] >= 0) ? 1 : -1;
+                }
+                std::vector<T> z(n, 0.0);
+                for (size_t i = 0; i < n; ++i) {
+                    for (size_t j = 0; j < mat_col; ++j) {
+                        z[i] += (*this)(j, i) * v[j];
+                    }
+                }
+                auto zinfinitynorm = VectorInfinityNormWithIndex(z);
+                T ztranx = 0.0;
+                for (size_t i = 0; i < n; ++i)
+                    ztranx += z[i] * x[i];
+
+                if (zinfinitynorm.first <= ztranx) {
+                    return VectorL1Norm(w);
+                } else {
+                    std::vector<T> ej(n, 0.0);
+                    ej[zinfinitynorm.second] = 1;
+                    x = ej;
+                }
+            }
+        } else {
+            while (--iter) {
+                std::vector<T> w = PALUsolve(x);
+                std::vector<T> v(n, 0.0);
+                for (size_t i = 0; i < n; ++i) {
+                    if (w[i] > 0) v[i] = 1;
+                    if (w[i] < 0) v[i] = -1;
+                }
+                std::vector<T> z = PALUsolve(v);
+                auto zinfinitynorm = VectorInfinityNormWithIndex(z);
+                T ztranx = 0.0;
+                for (size_t i = 0; i < n; ++i)
+                    ztranx += z[i] * x[i];
+                if (zinfinitynorm.first <= ztranx) {
+                    return VectorL1Norm(w);
+                } else {
+                    std::vector<T> ej(n, 0.0);
+                    ej[zinfinitynorm.second] = 1.0;
+                    x = ej;
+                }
+                if (iter == 1) {
+                    return VectorL1Norm(w);
+                }
+            }
+        }
+        return 0;
     }
 };
